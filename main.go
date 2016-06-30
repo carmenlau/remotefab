@@ -52,7 +52,9 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
     }
     log.Printf("[%s] Fetching the latest code...", deployid)
     executeCommandWihDir(checkoutPath, "git", "fetch")
-    executeCommandWihDir(checkoutPath, "git", "reset", "--hard", a.GetBranch())
+    executeCommandWihDir(checkoutPath, "git", "reset", "--hard")
+    executeCommandWihDir(checkoutPath, "git", "checkout", a.GetBranch())
+    executeCommandWihDir(checkoutPath, "git", "pull")
     executeCommandWihDir(checkoutPath, "git", "submodule", "update", "--init", "--recursive")
 
     log.Printf("[%s] Start deploying...", deployid)
@@ -61,6 +63,8 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
     log.Printf("[%s] Executing fabric...", deployid)
     deployTask := fmt.Sprintf("deploy:branch_name=%s", a.GetBranch())
     executeCommandWihDir(checkoutPath, "fab", "-R", a.GetRoles(), deployTask)
+
+    log.Printf("[%s] Deployment Done...", deployid)
   }()
 }
 
