@@ -20,6 +20,11 @@ func (a *AppSetting) IsVaild() bool {
   return a.GetCloneURL() != "" && a.GetBranch() != ""
 }
 
+// GetHash - application hash
+func (a *AppSetting) GetHash() string {
+  return a.hash
+}
+
 // GetCloneURL - get clone url from env based on application hash
 func (a *AppSetting) GetCloneURL() string {
   return os.Getenv(strings.Join([]string{a.hash, "_CLONE_URL"}, ""))

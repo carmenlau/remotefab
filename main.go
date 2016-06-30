@@ -4,6 +4,7 @@ import (
   "log"
   "fmt"
   "strings"
+  "sync"
   "os"
   "os/exec"
   "net/http"
@@ -15,6 +16,10 @@ import (
 // Context - Handler Context
 type Context struct {
 	Config config.Configuration
+}
+
+var currentDeployment = &ongoingDeployment{
+  deploymentIDMap: make(map[string]interface{}),
 }
 
 func main() {
@@ -39,6 +44,14 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
       "Missing Configuration, please contact administrator!")
     return
   }
+
+  oldDeployid := currentDeployment.GetDeploymentID(a.GetHash())
+  if oldDeployid != "" {
+    errorHandler(w, http.StatusBadRequest,
+      fmt.Sprintf("Duplicated deployment, ongoing deployment id: %q", oldDeployid))
+    return
+  }
+  currentDeployment.SetDeploymentID(a.GetHash(), deployid)
   fmt.Fprintf(w, "Deployment id: %q", deployid)
 
   // start deployment
@@ -64,6 +77,7 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
     deployTask := fmt.Sprintf("deploy:branch_name=%s", a.GetBranch())
     executeCommandWihDir(checkoutPath, "fab", "-R", a.GetRoles(), deployTask)
 
+    currentDeployment.ResetDeploymentID(a.GetHash())
     log.Printf("[%s] Deployment Done...", deployid)
   }()
 }
@@ -84,6 +98,32 @@ func executeCommandWihDir(dir string, name string, arg ...string)  {
 }
 
 func errorHandler(w http.ResponseWriter, status int, msg string) {
-    w.WriteHeader(status)
-    fmt.Fprint(w, msg)
+  w.WriteHeader(status)
+  fmt.Fprint(w, msg)
+}
+
+type ongoingDeployment struct {
+  sync.RWMutex
+  deploymentIDMap map[string]interface{}
+}
+
+func (o *ongoingDeployment) SetDeploymentID(hash string, id string) {
+  o.Lock()
+  o.deploymentIDMap[hash] = id
+  o.Unlock()
+}
+
+func (o *ongoingDeployment) ResetDeploymentID(hash string) {
+  o.Lock()
+  delete(o.deploymentIDMap, hash)
+  o.Unlock()
+}
+
+func (o *ongoingDeployment) GetDeploymentID(hash string) string {
+  o.RLock()
+  defer o.RUnlock()
+  if o.deploymentIDMap[hash] == nil {
+    return ""
+  }
+  return o.deploymentIDMap[hash].(string)
 }
