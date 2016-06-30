@@ -1,0 +1,11 @@
+{
+	"ImportPath": "github.com/carmenlau/remote-fabric",
+	"GoVersion": "go1.6",
+	"Deps": [
+		{
+			"ImportPath": "github.com/google/uuid",
+			"Comment": "v.1-19-gf3f4b54",
+			"Rev": "f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8"
+		}
+	]
+}
