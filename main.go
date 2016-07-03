@@ -10,7 +10,7 @@ import (
   "net/http"
 
   "github.com/google/uuid"
-  "github.com/carmenlau/remote-fabric/config"
+  "github.com/carmenlau/remotefab/config"
 )
 
 // Context - Handler Context

@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/carmenlau/remote-fabric",
+	"ImportPath": "github.com/carmenlau/remotefab",
 	"GoVersion": "go1.6",
 	"Deps": [
 		{
