@@ -59,41 +59,52 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
     log.Printf("[%s] Application: %s", deployid, settingHash)
 
     checkoutPath := a.GetCheckoutDir(c.Config.WorkingDirPath)
+    workingDir := a.GetWorkingDir(c.Config.WorkingDirPath)
     if _, err := os.Stat(checkoutPath); os.IsNotExist(err) {
       log.Printf("[%s] Cloning project...", deployid)
-      executeCommand("git", "clone", a.GetCloneURL(), checkoutPath)
+      executeCommand(workingDir, deployid, "git", "clone", a.GetCloneURL(), checkoutPath)
     }
     log.Printf("[%s] Fetching the latest code...", deployid)
-    executeCommandWihDir(checkoutPath, "git", "fetch")
-    executeCommandWihDir(checkoutPath, "git", "reset", "--hard")
-    executeCommandWihDir(checkoutPath, "git", "checkout", a.GetBranch())
-    executeCommandWihDir(checkoutPath, "git", "pull")
-    executeCommandWihDir(checkoutPath, "git", "submodule", "update", "--init", "--recursive")
+    executeCommandWihDir(workingDir, deployid, checkoutPath, "git", "fetch")
+    executeCommandWihDir(workingDir, deployid, checkoutPath, "git", "reset", "--hard", "origin/" + a.GetBranch())
+    executeCommandWihDir(workingDir, deployid, checkoutPath, "git", "submodule", "update", "--init", "--recursive")
 
     log.Printf("[%s] Start deploying...", deployid)
-    executeCommandWihDir(checkoutPath, "git", "rev-parse", "HEAD")
+    executeCommandWihDir(workingDir, deployid, checkoutPath, "git", "rev-parse", "HEAD")
 
     log.Printf("[%s] Executing fabric...", deployid)
     deployTask := fmt.Sprintf("deploy:branch_name=%s", a.GetBranch())
-    executeCommandWihDir(checkoutPath, "fab", "-R", a.GetRoles(), deployTask)
+    executeCommandWihDir(workingDir, deployid, checkoutPath, "fab", "-R", a.GetRoles(), deployTask)
 
     currentDeployment.ResetDeploymentID(a.GetHash())
     log.Printf("[%s] Deployment Done...", deployid)
   }()
 }
 
-func executeCommand(name string, arg ...string)  {
+func executeCommand(workingDir string, deployid string, name string, arg ...string)  {
+  stdoutfile, err := os.Create(workingDir + "/stdout." + deployid + ".log")
+  if err != nil { panic(err) }
+  defer stdoutfile.Close()
+  stderrfile, err := os.Create(workingDir + "/stderr." + deployid + ".log")
+  if err != nil { panic(err) }
+  defer stderrfile.Close()
   cmd := exec.Command(name, arg...)
-  cmd.Stdout = os.Stdout
-  cmd.Stderr = os.Stderr
+  cmd.Stdout = stdoutfile
+  cmd.Stderr = stderrfile
   cmd.Run()
 }
 
-func executeCommandWihDir(dir string, name string, arg ...string)  {
+func executeCommandWihDir(workingDir string, deployid string, dir string, name string, arg ...string)  {
+  stdoutfile, err := os.Create(workingDir + "/stdout." + deployid + ".log")
+  if err != nil { panic(err) }
+  defer stdoutfile.Close()
+  stderrfile, err := os.Create(workingDir + "/stderr." + deployid + ".log")
+  if err != nil { panic(err) }
+  defer stderrfile.Close()
   cmd := exec.Command(name, arg...)
+  cmd.Stdout = stdoutfile
+  cmd.Stderr = stderrfile
   cmd.Dir = dir
-  cmd.Stdout = os.Stdout
-  cmd.Stderr = os.Stderr
   cmd.Run()
 }
 
