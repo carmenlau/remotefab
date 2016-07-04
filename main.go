@@ -5,9 +5,11 @@ import (
   "fmt"
   "strings"
   "sync"
+  "bytes"
   "os"
   "os/exec"
   "net/http"
+  "io/ioutil"
 
   "github.com/google/uuid"
   "github.com/carmenlau/remotefab/config"
@@ -24,12 +26,14 @@ var currentDeployment = &ongoingDeployment{
 
 func main() {
   c := Context{Config: config.NewConfigFromEnv()}
-  http.HandleFunc("/deploy/", c.requestHandler)
+  http.HandleFunc("/deploy/", c.deploymentHandler)
+  http.HandleFunc("/output/", c.outputLogHandler)
+  http.HandleFunc("/error/", c.errLogHandler)
   http.ListenAndServe(c.Config.Port, nil)
 }
 
 
-func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Context)deploymentHandler(w http.ResponseWriter, r *http.Request) {
   settingHash := strings.TrimPrefix(r.URL.Path, "/deploy/")
 
   if settingHash == "" {
@@ -79,6 +83,34 @@ func (c *Context)requestHandler(w http.ResponseWriter, r *http.Request) {
     currentDeployment.ResetDeploymentID(a.GetHash())
     log.Printf("[%s] Deployment Done...", deployid)
   }()
+}
+
+func (c *Context)outputLogHandler(w http.ResponseWriter, r *http.Request) {
+  c.logFileHandler(w, r, "/output/", "stdout")
+}
+
+func (c *Context)errLogHandler(w http.ResponseWriter, r *http.Request) {
+  c.logFileHandler(w, r, "/error/", "stderr")
+}
+
+func (c *Context)logFileHandler(w http.ResponseWriter, r *http.Request, route string, logType string) {
+  s := strings.TrimPrefix(r.URL.Path, route)
+  routes := strings.Split(s, "/")
+  if len(routes) != 2 {
+    errorHandler(w, http.StatusNotFound, "404 page not found")
+    return
+  }
+  a := config.NewAppSetting(routes[0])
+  logFilebytes, err := ioutil.ReadFile(a.GetWorkingDir(c.Config.WorkingDirPath) + "/" + logType + "." + routes[1] + ".log")
+  if err != nil {
+    fmt.Fprintf(w, "Deployment not found: %s", routes[1])
+    return
+  }
+  b := bytes.NewBuffer(logFilebytes)
+  w.Header().Set("Content-type", "text/plain")
+  if _, err := b.WriteTo(w); err != nil {
+    fmt.Fprintf(w, "Unable to open log file: %s", routes[1])
+  }
 }
 
 func executeCommand(workingDir string, deployid string, name string, arg ...string)  {
