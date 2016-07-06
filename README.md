@@ -5,6 +5,9 @@ Remote fabric is a simple web server that pull latest code from git and execut f
 - Fabric: http://www.fabfile.org/
 - Golang 1.6
 
+### Quick start
+go build main.go && ./main
+
 ## Configuration
 
 | Environmental Variables       |                                                 |
